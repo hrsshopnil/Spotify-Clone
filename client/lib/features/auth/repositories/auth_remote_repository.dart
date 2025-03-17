@@ -5,7 +5,7 @@ import 'package:client/features/auth/model/user_mode.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-part 'auth_remote_repositories.g.dart';
+part 'auth_remote_repository.g.dart';
 
 @riverpod
 AuthRemoteRepository authRemoteRepository(ref) {
