@@ -2,7 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 part 'auth_local_repository.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 AuthLocalRepository authLocalRepository(ref) {
   return AuthLocalRepository();
 }
@@ -14,25 +14,11 @@ class AuthLocalRepository {
     _sharedPreferences = await SharedPreferences.getInstance();
   }
 
-  void setToken(String? token) {
-    if (!isInitialized()) {
-      print(
-        "ERROR: SharedPreferences is not initialized when calling setToken!",
-      );
-      return;
-    }
-
-    if (token != null) {
-      print("Saving token: $token");
-      _sharedPreferences.setString('x-auth-token', token);
-    }
+  Future<void> setToken(String token) async {
+    await _sharedPreferences.setString('x-auth-token', token);
   }
 
-  bool isInitialized() {
-    return _sharedPreferences != null;
-  }
-
-  String? getToken() {
+  Future<String?> getToken() async {
     return _sharedPreferences.getString('x-auth-token');
   }
 }

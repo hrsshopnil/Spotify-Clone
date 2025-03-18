@@ -1,3 +1,4 @@
+import 'package:client/core/providers/current_user_provider.dart';
 import 'package:client/features/auth/model/user_mode.dart';
 import 'package:client/features/auth/repositories/auth_local_repository.dart';
 import 'package:client/features/auth/repositories/auth_remote_repository.dart';
@@ -10,18 +11,18 @@ part 'auth_viewmodel.g.dart';
 class AuthViewModel extends _$AuthViewModel {
   late AuthRemoteRepository _authRemoteRepository;
   late AuthLocalRepository _authLocalRepository;
+  late CurrentUserNotifier _currentUserNotifier;
 
   @override
   AsyncValue<UserModel>? build() {
     _authRemoteRepository = ref.watch(authRemoteRepositoryProvider);
     _authLocalRepository = ref.watch(authLocalRepositoryProvider);
+    _currentUserNotifier = ref.watch(currentUserNotifierProvider.notifier);
     return null;
   }
 
   Future<void> initSharedPrference() async {
-    print("Initializing SharedPreferences...");
     await _authLocalRepository.init();
-    print("Initialized SharedPreferences...");
   }
 
   Future<void> signupUser({
@@ -35,12 +36,11 @@ class AuthViewModel extends _$AuthViewModel {
       email: email,
       password: password,
     );
-    final val = switch (res) {
+    final _ = switch (res) {
       fpdart.Left(value: final l) =>
         state = AsyncValue.error(l.toString(), StackTrace.current),
       fpdart.Right(value: final r) => state = AsyncValue.data(r),
     };
-    print(val);
   }
 
   Future<void> loginUser({
@@ -52,37 +52,39 @@ class AuthViewModel extends _$AuthViewModel {
       email: email,
       password: password,
     );
-    final val = switch (res) {
+    final _ = switch (res) {
       fpdart.Left(value: final l) =>
         state = AsyncValue.error(l.toString(), StackTrace.current),
       fpdart.Right(value: final r) => state = _loginSuccess(r),
     };
-    print(val);
   }
 
   AsyncValue<UserModel>? _loginSuccess(UserModel user) {
-    if (_authLocalRepository.getToken() == null) {
-      print(
-        "ERROR: Trying to set token before SharedPreferences is initialized!",
-      );
-      return AsyncValue.error(
-        "SharedPreferences not initialized",
-        StackTrace.current,
-      );
-    }
-
-    print("Saving token: ${user.token}");
     _authLocalRepository.setToken(user.token);
-    return AsyncValue.data(user);
+    _currentUserNotifier.addUser(user);
+    return state = AsyncValue.data(user);
   }
 
-  // Future<UserModel?> getUser() async {
-  //   state = const AsyncValue.loading();
-  //   final token = await _authLocalRepository.getToken();
-  //   if (token == null) {
-  //     throw Exception('Token not found');
-  //   }
-  //final res = await _authRemoteRepository.getUser(token);
-  //return res;
-  //}
+  Future<UserModel?> getUser() async {
+    state = const AsyncValue.loading();
+    final token = await _authLocalRepository.getToken();
+    if (token == null) {
+      state = AsyncValue.data(
+        UserModel(name: '', email: '', id: '', token: ''),
+      );
+      return null;
+    }
+    final res = await _authRemoteRepository.getCurrentUser(token: token);
+    final val = switch (res) {
+      fpdart.Left(value: final l) =>
+        state = AsyncValue.error(l.message.toString(), StackTrace.current),
+      fpdart.Right(value: final r) => state = _getDataSuccess(r),
+    };
+    return val.value;
+  }
+
+  AsyncValue<UserModel> _getDataSuccess(UserModel user) {
+    _currentUserNotifier.addUser(user);
+    return state = AsyncValue.data(user);
+  }
 }
