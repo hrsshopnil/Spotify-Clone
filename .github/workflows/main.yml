@@ -1,0 +1,77 @@
+name: Flutter CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to the main branch
+  pull_request:
+    branches:
+      - main  # Trigger on pull request to the main branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Set up Flutter environment
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.7.0'  # Make sure to update with your desired Flutter version
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Step 4: Run unit tests (for now since widget tests aren't implemented)
+      - name: Run unit tests
+        run: flutter test
+
+      # Step 5: Build the app for Android
+      - name: Build APK (for Android)
+        run: flutter build apk --release
+
+      # Step 6: Build the app for iOS (requires macOS runner or self-hosted runner for iOS)
+      - name: Build iOS app (for macOS only)
+        if: runner.os == 'macOS'
+        run: flutter build ios --release
+        env:
+          FLUTTER_VERSION: ${{ steps.flutter.outputs.flutter-version }}
+
+      # Step 7: Upload build artifacts (optional)
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v2
+        with:
+          name: flutter-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload iOS build artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: flutter-ios-app
+          path: build/ios/iphoneos/Runner.app
+
+      # Step 8: Optional deployment (e.g., Fastlane for Android)
+      # Add additional steps here for deployment (like Fastlane or any other deployment tool)
+      # For Google Play Store or Firebase App Distribution, configure Fastlane
+      # - name: Deploy to Google Play (Android)
+      #   run: fastlane android beta
+      #   env:
+      #     GOOGLE_PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+
+      # Step 9: Deploy iOS app (Fastlane for iOS)
+      # - name: Deploy to App Store (iOS)
+      #   run: fastlane ios beta
+      #   env:
+      #     APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+
+      # Step 10: Integrate Sentry for error tracking
+      - name: Sentry Upload Release
+        run: |
+          flutter pub run sentry_flutter upload-symbols --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }} --release "1.0.0" --dist "1"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
